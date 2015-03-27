@@ -1,0 +1,316 @@
+package tasks;
+
+import ArrayUtils.ArrayUtils;
+import InputOutput.FastReader;
+import Maths.MathUtils;
+import dataStructures.HLDecomposition;
+import java.io.PrintWriter;
+import java.util.ArrayList;
+import java.util.List;
+
+public class HLDSegmentTree
+{
+    int n;
+    List<Integer> tree[];
+    HLDecomposition HL;
+    int vals[];
+    SegTree segTree[];
+    int indexInTree[];
+    public void solve(int testNumber, FastReader in, PrintWriter out)
+    {
+        n = in.nextInt ();
+
+        tree = new List[n];
+        for (int i = 0; i < n; i++)
+        {
+            tree[i] = new ArrayList<Integer> ();
+        }
+        for (int i = 0; i < n - 1; i++)
+        {
+            int a = in.nextInt ();
+            int b = in.nextInt ();
+            tree[a].add (b);
+            tree[b].add (a);
+        }
+        vals = new int[n];
+        ArrayUtils.readIntArray (vals, in);
+        HL = new HLDecomposition (tree, 0);
+        createSegTrees ();
+
+        int q = in.nextInt ();
+        for (int i = 0; i < q; i++)
+        {
+            char ch = in.nextString ().charAt (0);
+            int u = in.nextInt ();
+            int v = in.nextInt ();
+            int lca = HL.lca (u, v);
+            if (ch == 'C')
+            {
+                int d = in.nextInt ();
+                change (u, lca, true, d);
+                change (v, lca, false, d);
+            }
+            else
+            {
+//                System.out.println (lca);
+                int gcd1 = find (u, lca, true);
+                int gcd2 = find (v, lca, false);
+//                System.out.println (gcd1 + " " + gcd2);
+                out.println (MathUtils.gcd (Math.max (gcd1, gcd2), Math.min (gcd1, gcd2)));
+            }
+        }
+    }
+
+    private void change(int from, int to, boolean includeTo, int incr)
+    {
+        SegNode.incr = incr;
+        //while from lower than to and in diff chain
+        while (HL.head[from] != HL.head[to])
+        {
+            int p = HL.head[from];
+            segTree[p].rangeUpdate (1, indexInTree[from]+1);
+            from = HL.parent[p];
+        }
+        //both in same chain
+        int p = HL.head[from];
+        int st = indexInTree[to]+1;
+        int end = indexInTree[from]+1;
+        if (!includeTo)
+        {
+            st++;
+        }
+        if (st > end)
+        {
+            return;
+        }
+        segTree[p].rangeUpdate (st, end);
+    }
+
+    private int find(int from, int to, boolean includeTo)
+    {
+
+        int ans = 0;
+        //while from lower than to and in diff chain
+        while (HL.head[from] != HL.head[to])
+        {
+
+            int p = HL.head[from];
+//            System.out.println ("--" + from + " " + p);
+            SegNode x = segTree[p].rangeQuery (1, indexInTree[from]+1);
+            int y = MathUtils.gcd (Math.max (x.firstNum, x.suffixDiffGCD), Math.min (x.firstNum, x.suffixDiffGCD));
+            ans = MathUtils.gcd (Math.max (ans, y), Math.min (ans, y));
+            from = HL.parent[p];
+//            System.out.println ("============"+ans);
+        }
+        //both in same chain
+        int p = HL.head[from];
+        int st = indexInTree[to]+1;
+        int end = indexInTree[from]+1;
+        if (!includeTo)
+        {
+            st++;
+        }
+        if (st > end)
+        {
+            return ans;
+        }
+        SegNode x = segTree[p].rangeQuery (st, end);
+
+        int y = MathUtils.gcd (Math.max (x.firstNum, x.suffixDiffGCD), Math.min (x.firstNum, x.suffixDiffGCD));
+        ans = MathUtils.gcd (Math.max (ans, y), Math.min (ans, y));
+        return ans;
+    }
+
+
+
+    private void createSegTrees()
+    {
+        segTree = new SegTree[n];
+        indexInTree = new int[n];
+        //traverse through head nodes and assign each a segtree
+        for (int i = 0; i < n; i++)
+        {
+            if (HL.cnt[i] != 0)
+            {
+                //start initialising the seg tree
+                SegNode.a = new int[HL.cnt[i]];
+                for (int j = 0, k = i; j < HL.cnt[i]; j++, k = HL.heavyChild[k])
+                {
+                    indexInTree[k] = j;
+                    SegNode.a[j] = vals[k];
+                }
+                //now our static array is built, create segtree
+                segTree[i] = new SegTree (HL.cnt[i]);
+            }
+        }
+    }
+}
+
+/* segment node */
+class SegNode
+{
+    static int a[];
+    int firstNum, lastNum;
+    int suffixDiffGCD;
+    int childIncr;
+    static int incr;
+    //add state values here and static variables from main to assist update/initialise
+
+    //split and merge never have null l and r
+    void split(SegNode l, SegNode r)
+    {
+        //update children with childIncr
+        l.update (childIncr);
+        r.update (childIncr);
+        childIncr = 0;
+    }
+    void merge(SegNode l, SegNode r)    //done
+    {
+        firstNum = l.firstNum;
+        lastNum = r.lastNum;
+
+        int num1 = l.suffixDiffGCD, num2 = r.suffixDiffGCD;
+        int num3 = Math.abs (r.firstNum - l.lastNum);
+        suffixDiffGCD = MathUtils.gcd (Math.max (num1, num2), Math.min (num1, num2));
+        suffixDiffGCD = MathUtils.gcd (Math.max (suffixDiffGCD, num3), Math.min (suffixDiffGCD, num3));
+    }
+    void update(int incr)
+    {
+        firstNum += incr;
+        lastNum += incr;
+        //suffix diff gcd always remains same
+        childIncr += incr;
+    }
+    void initialiseLeaf(int range) //done
+    {
+        firstNum =  lastNum =  a[range - 1];
+        childIncr = 0;
+        suffixDiffGCD  = 0;
+
+    }
+    public static boolean hasUpdate = true; //or has split
+
+}
+
+/* segment tree*/
+class SegTree
+{
+    SegNode tree[];
+    //we have index from 1
+    int n;
+    /*
+    creates a SegTree with range [1, MAXN]
+     */
+
+    public SegTree(int MAXN)
+    {
+        n = MAXN;
+        int nodeCount = Integer.highestOneBit (MAXN) << 2;
+        tree = new SegNode[nodeCount + 1];
+        //for extra cushion one extra level is created, also indexing is done from 1
+        initialiseTree (1, 1, MAXN);
+    }
+
+    private void initialiseTree(int index, int start, int end)
+    {
+        tree[index] = new SegNode ();
+        if (start == end)
+        {
+            tree[index].initialiseLeaf (start);
+            return;
+        }
+        //initialise subtrees
+        int mid = (start + end) >> 1;
+        int lChild = index << 1;
+        int rChild = lChild + 1;
+        initialiseTree (lChild, start, mid);
+        initialiseTree (rChild, mid + 1, end);
+        tree[index].merge (tree[lChild], tree[rChild]);
+    }
+
+    /*
+    [start, end] is the query range
+     */
+    public SegNode rangeQuery(int start, int end)
+    {
+        return rangeQuery (1, start, end, 1, n);
+    }
+    private SegNode rangeQuery(int index, int start, int end, int leftRange, int rightRange)
+    {
+        //if within query range, return current node
+        if(leftRange >= start && rightRange<=end)
+            return tree[index];
+
+        //if doesnt intersect query change, return null
+        if(rightRange < start || leftRange > end)
+            return null;
+
+        //now current node will never be a leaf node since both intersection and not intersection cases done
+        //therefore split never has null nodes
+
+        //else some intersection
+        int lChild = index<<1;
+        int rChild = lChild+1;
+        int mid = (leftRange+rightRange)>>1;
+        //lazily propogate state changes to children
+        if(SegNode.hasUpdate)
+            tree[index].split (tree[lChild], tree[rChild]);
+
+        //perform queries on children
+        SegNode res = new SegNode ();
+        SegNode l = rangeQuery (lChild, start, end, leftRange, mid);
+        SegNode r = rangeQuery (rChild, start, end, mid+1, rightRange);
+
+        //merge info from children into current node, since children are updated
+        //again both not null
+        if(SegNode.hasUpdate)
+            tree[index].merge (tree[lChild], tree[rChild]);
+
+        if(l == null)
+            return r;
+        else if(r == null)
+            return l;
+        /* RANGE of res
+        int ll = Math.max (start, leftRange);
+        int rr = Math.min (end, rightRange);
+        res.merge (l, r, ll ,rr , mid); mid = (leftRange+rightRange)/2
+         */
+        res.merge (l, r);
+        return res;
+    }
+    public void rangeUpdate(int start, int end)
+    {
+        rangeUpdate (1, start, end, 1, n);
+    }
+    private void rangeUpdate(int index, int start, int end, int leftRange, int rightRange)
+    {
+
+        //if within update range, update current node and return
+        if (leftRange >= start && rightRange <= end)
+        {
+            tree[index].update (SegNode.incr);
+            return;
+        }
+
+        //if doesnt intersect update change, return
+        if(rightRange < start || leftRange > end)
+            return;
+
+        //now current node will never be a leaf node since both intersection and not intersection cases done
+        //therefore split never has null nodes
+
+        //else update range intersects some part of current node
+        int lChild = index<<1;
+        int rChild = lChild+1;
+        int mid = (leftRange + rightRange)>>1;
+        //lazily propogate state changes to children
+        tree[index].split (tree[lChild], tree[rChild]);
+
+        //perform updates on children
+        rangeUpdate (lChild, start, end, leftRange, mid);
+        rangeUpdate (rChild, start, end, mid+1, rightRange);
+
+        //merge info from children into current node, since children are updated
+        tree[index].merge (tree[lChild], tree[rChild]);
+    }
+}

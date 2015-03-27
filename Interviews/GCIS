@@ -1,0 +1,193 @@
+/* Greatest common increasing subsequence in O(nm) */
+Try at poj 2127
+
+Concept ->http://blog.codechef.com/2009/05/19/211/ see this for O(nmm)
+Now we are iterating over j in inner loop
+Critical condn is a[i]==b[j] which yields results
+
+If while iterating over j, we store the best j(best predecessor) such that b[bestJ] < a[i] => b[bestJ] < b[j] since a[i]==b[j]
+and bestJ is the j which yield the maximum length of GCIS over the j's seen
+we would not need to scan all previous rows/colums
+
+Also nmm code is given below. See how the innermost loop is removed from O(nmm) code
+
+class GCIS4
+{
+    short maxLen[];
+    int a[];
+    int b[];
+    int n, m;
+    short prevI[][];
+    short prevJ[][];
+    PrintWriter o;
+    short Iused[];
+    public void solve(int testNumber, FastReader in, PrintWriter out)
+    {
+        o = out;
+        n = in.nextInt ();
+        a = new int[n];
+        ArrayUtils.readIntArray (a, in);
+        m = in.nextInt ();
+        b = new int[m];
+        ArrayUtils.readIntArray (b, in);
+        maxLen = new short[m];
+        prevI = new short[n][m];
+        prevJ = new short[n][m];
+        Iused = new short[m];
+        for (int j = 0; j < m; j++)
+        {
+            Iused[j] = -1;
+            for (int i = 0; i < n; i++)
+            {
+                prevJ[i][j] = prevI[i][j] = -1;
+            }
+        }
+        int maxJ = 0;
+        for (short i = 0; i < n; i++)
+        {
+            short bestJ = -1;
+            for (short j = 0; j < m; j++)
+            {
+                if (b[j] < a[i]) // candidate predecessor of a[i]
+                {
+                    if (bestJ == -1 || maxLen[bestJ] < maxLen[j])
+                    {
+                        bestJ = j;
+                    }
+                }
+                else if (a[i] == b[j])
+                {
+                    short prevLen = (bestJ == -1 ? 0 : maxLen[bestJ]);
+                    short newLen = (short) (1 + prevLen);
+                    if (newLen > maxLen[j])
+                    {
+                        maxLen[j] = newLen;
+                        Iused[j] = i;
+                        if (bestJ != -1)
+                        {
+                            prevI[i][j] = Iused[bestJ];
+                        }
+                        prevJ[i][j] = bestJ;
+                    }
+                    if (maxLen[j] > maxLen[maxJ])
+                    {
+                        maxJ = j;
+                    }
+                }
+            }
+        }
+        out.println (maxLen[maxJ]);
+        if (maxLen[maxJ] == 0)
+        {
+            out.println ();
+            return;
+        }
+        printAns (Iused[maxJ], maxJ);
+        out.println ();
+    }
+
+    private void printAns(int i, int j)
+    {
+        if (i == -1 || j == -1)
+        {
+            return;
+           // throw new RuntimeException ();
+        }
+        printAns (prevI[i][j], prevJ[i][j]);
+        o.print (b[j] + " ");
+    }
+}
+
+
+/***************** O(nmm) code  ****************/
+class GCIS4
+{
+    int maxLen[];
+    int a[];
+    int b[];
+    int n, m;
+    int prevI[][];
+    int prevJ[][];
+    PrintWriter o;
+    int Iused[];
+    public void solve(int testNumber, FastReader in, PrintWriter out)
+    {
+        o = out;
+        n = in.nextInt ();
+        a = new int[n];
+        ArrayUtils.readIntArray (a, in);
+        m = in.nextInt ();
+        b = new int[m];
+        ArrayUtils.readIntArray (b, in);
+        maxLen = new int[m];
+        prevI = new int[n][m];
+        prevJ = new int[n][m];
+        Iused = new int[m];
+        for (int j = 0; j < m; j++)
+        {
+            Iused[j] = -1;
+            for (int i = 0; i < n; i++)
+            {
+                prevJ[i][j] = prevI[i][j] = -1;
+            }
+        }
+        int maxJ = 0;
+        for (int i = 0; i < n; i++)
+        {
+            for (int j = 0; j < m; j++)
+            {
+                if (a[i] != b[j])
+                {
+                    continue;
+                }
+                int prevLen = 0;
+                int prevJJ = -1;
+                for (int k = 0; k < j; k++)
+                {
+                    if (b[k] < b[j])
+                    {
+                        int len = maxLen[k];
+                        if (len > prevLen)
+                        {
+                            prevLen = len;
+                            prevJJ = k;
+                        }
+                    }
+                }
+                int newLen = 1 + prevLen;
+                if (newLen > maxLen[j])
+                {
+                    maxLen[j] = newLen;
+                    Iused[j] = i;
+                    if(prevJJ != -1)
+                        prevI[i][j] = Iused[prevJJ];
+                    prevJ[i][j] = prevJJ;
+                }
+                if (maxLen[j] > maxLen[maxJ])
+                {
+                    maxJ = j;
+                }
+            }
+        }
+
+        out.println (maxLen[maxJ]);
+        if (maxLen[maxJ] == 0)
+        {
+            out.println ();
+            return;
+        }
+        printAns (Iused[maxJ], maxJ);
+        out.println ();
+    }
+
+    private void printAns(int i, int j)
+    {
+        if (i == -1 && j == -1)
+        {
+            return;
+        }
+        printAns (prevI[i][j], prevJ[i][j]);
+        o.print (b[j] + " ");
+
+    }
+}
